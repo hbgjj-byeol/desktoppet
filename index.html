@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}#pet{position:absolute;left:30px;top:40px;width:120px;height:120px;object-fit:contain;image-rendering:pixelated;user-select:none;-webkit-user-drag:none;cursor:grab;filter:drop-shadow(0 2px 0 #0002)}#bubble{display:none;position:absolute;z-index:5;left:50%;top:0;transform:translate(-50%,-90%);max-width:160px;padding:5px 9px;border:1px solid #eadbc6;border-radius:12px;background:#fffaf4;color:#6f5941;font:12px 'Malgun Gothic',sans-serif;white-space:nowrap;box-shadow:0 3px 10px #0002;pointer-events:none}#bubble:after{content:'';position:absolute;left:50%;bottom:-5px;width:8px;height:8px;background:#fffaf4;border-right:1px solid #eadbc6;border-bottom:1px solid #eadbc6;transform:translateX(-50%) rotate(45deg)}#menu{display:none;position:absolute;left:5px;top:5px;z-index:10;background:#fffaf1;border:1px solid #d8c8b2;border-radius:12px;padding:6px;box-shadow:0 5px 20px #0003;font:13px 'Malgun Gothic',sans-serif;min-width:128px}button{display:block;width:100%;border:0;border-radius:7px;background:transparent;text-align:left;padding:7px;white-space:nowrap;cursor:pointer}button:hover{background:#f6e5c9}
+</style></head><body>
+<div id="bubble" aria-live="polite"></div><img id="pet" src="assets/pose_00.png" draggable="false" alt="햄찌">
+<div id="menu"><button id="talk">💬 Talk Off</button><button id="pause">⏸ 잠깐 멈추기</button><button id="resume">🐾 다시 돌아다니기</button><button id="quit">✕ Exit</button></div>
+<script>
+const pet=document.querySelector('#pet'),menu=document.querySelector('#menu'),bubble=document.querySelector('#bubble'),talkButton=document.querySelector('#talk');
+const poseGroups={walk:[0,1,2,7],idle:[0,3,6,11],sleep:[5,11],groom:[3,8,9],play:[6,7,9,10],stretch:[4,8]};
+let x=120,y=120,dx=0.7,dy=0.35,flip=false,drag=false,ox=0,oy=0,paused=false,menuOpen=false;
+let state='walk',stateUntil=0,lastPose=0,nextDecision=0,talkOn=true,bubbleTimer=null,nextBubbleAt=0;
+const now=()=>performance.now();
+function show(i){pet.src='assets/pose_'+String(i).padStart(2,'0')+'.png';pet.style.transform=flip?'scaleX(-1)':'scaleX(1)'}
+function randomPose(group){const a=poseGroups[group]||poseGroups.idle;show(a[Math.floor(Math.random()*a.length)])}
+const chatter={walk:['총총총…','탐험 중!','간식 어디 있지?','햄찌 출동!'],idle:['후우…','여기 좋다.','꼬물꼬물'],sleep:['쿨쿨…','Zzz…','꿈나라로…'],groom:['슥슥!','세수 중!','볼따구 정리'],play:['에잇!','햄찌 펀치!','얍얍!'],stretch:['쭈우욱~','기지개 쫙!']};
+function sayRandom(){if(!talkOn||menuOpen)return;const a=chatter[state]||chatter.idle;bubble.textContent=a[Math.floor(Math.random()*a.length)];bubble.style.display='block';clearTimeout(bubbleTimer);bubbleTimer=setTimeout(()=>bubble.style.display='none',1200+Math.random()*700)}
+function scheduleBubble(){nextBubbleAt=now()+3500+Math.random()*6500}
+function setTalk(on){talkOn=on;talkButton.textContent=on?'💬 Talk Off':'💬 Talk On';if(!on){bubble.style.display='none';clearTimeout(bubbleTimer)}else scheduleBubble()}
+function chooseBehavior(){
+ const r=Math.random();
+ if(r<.39){state='walk';stateUntil=now()+1800+Math.random()*4200;dx=(Math.random()<.5?-1:1)*(0.35+Math.random()*1.05);dy=(Math.random()<.5?-1:1)*(0.18+Math.random()*0.7);randomPose('walk')}
+ else if(r<.55){state='idle';stateUntil=now()+1600+Math.random()*3500;dx=0;dy=0;randomPose('idle')}
+ else if(r<.69){state='groom';stateUntil=now()+2200+Math.random()*2400;dx=0;dy=0;randomPose('groom')}
+ else if(r<.84){state='play';stateUntil=now()+1300+Math.random()*1800;dx=0;dy=0;randomPose('play')}
+ else if(r<.96){state='sleep';stateUntil=now()+3500+Math.random()*6500;dx=0;dy=0;randomPose('sleep')}
+ else {state='stretch';stateUntil=now()+1400+Math.random()*1600;dx=0;dy=0;randomPose('stretch')}
+ nextDecision=stateUntil;scheduleBubble();
+}
+function updateFacing(){if(dx<-.05)flip=true;else if(dx>.05)flip=false;pet.style.transform=flip?'scaleX(-1)':'scaleX(1)'}
+pet.addEventListener('pointerdown',e=>{if(e.button!==0)return;drag=true;ox=e.screenX-x;oy=e.screenY-y;pet.setPointerCapture(e.pointerId);pet.style.cursor='grabbing';menu.style.display='none';e.preventDefault()});
+pet.addEventListener('pointermove',e=>{if(!drag)return;x=e.screenX-ox;y=e.screenY-oy;window.hamsterAPI.move(x,y)});
+function stopDrag(){drag=false;pet.style.cursor='grab'}pet.addEventListener('pointerup',stopDrag);pet.addEventListener('pointercancel',stopDrag);
+pet.addEventListener('contextmenu',e=>{e.preventDefault();menuOpen=!menuOpen;menu.style.display=menuOpen?'block':'none';if(menuOpen)bubble.style.display='none'});
+talkButton.onclick=()=>{setTalk(!talkOn);menu.style.display='none';menuOpen=false};
+document.querySelector('#pause').onclick=()=>{paused=true;menu.style.display='none';menuOpen=false};
+document.querySelector('#resume').onclick=()=>{paused=false;chooseBehavior();menu.style.display='none';menuOpen=false};
+document.querySelector('#quit').onclick=()=>window.hamsterAPI.quit();
+async function init(){try{const info=await window.hamsterAPI.desktopInfo();x=info.position[0];y=info.position[1];}catch(e){}chooseBehavior();requestAnimationFrame(tick)}
+let previous=now();function tick(){const t=now(),dt=Math.min(2,(t-previous)/16.67);previous=t;
+ if(!drag&&!paused){
+  if(state==='walk'){
+   x+=dx*dt;y+=dy*dt;
+   const margin=10, maxX=(window.screen.availWidth||1920)-132,maxY=(window.screen.availHeight||1080)-132;
+   if(x<margin){x=margin;dx=Math.abs(dx);updateFacing()}if(x>maxX){x=maxX;dx=-Math.abs(dx);updateFacing()}
+   if(y<margin){y=margin;dy=Math.abs(dy)}if(y>maxY){y=maxY;dy=-Math.abs(dy)}
+   if(Math.random()<0.009){dy=(Math.random()<.5?-1:1)*(0.15+Math.random()*0.65);dx=(Math.random()<.5?-1:1)*(0.3+Math.random()*0.85);updateFacing()}
+   if(Math.random()<0.012)randomPose('walk');
+   window.hamsterAPI.move(x,y);
+  }
+  if(t>=nextDecision)chooseBehavior();if(t>=nextBubbleAt){sayRandom();scheduleBubble()}
+ }
+ requestAnimationFrame(tick)}
+init();
+</script></body></html>

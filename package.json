@@ -1,0 +1,33 @@
+{
+  "name": "hamster-desktop-pet",
+  "version": "1.0.0",
+  "description": "Tiny transparent always-on-top pixel hamster for Windows",
+  "main": "main.js",
+  "author": "HamsterPet",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.hamsterpet.desktop",
+    "productName": "HamsterPet",
+    "asar": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "artifactName": "HamsterPet-${version}-Windows.exe"
+    }
+  }
+}
